@@ -4,8 +4,15 @@ import torch.nn.functional as F
 import torchvision
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+import sys
 
 from utils import _create_model_training_folder
+
+def log_info(text):
+    dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    print(f'{dt_string} | {text}')
+    sys.stdout.flush()
 
 
 class BYOLTrainer:
@@ -77,10 +84,13 @@ class BYOLTrainer:
                 self._update_target_network_parameters()  # update the key encoder
                 niter += 1
 
-            print("End of epoch {}".format(epoch_counter))
+            log_info("End of epoch {}".format(epoch_counter))
+
+            if (epoch_counter + 1) % 5 == 0:
+                self.save_model(os.path.join(model_checkpoints_folder, f'model_{epoch_counter+1}.pth'))
 
         # save checkpoints
-        self.save_model(os.path.join(model_checkpoints_folder, 'model.pth'))
+        self.save_model(os.path.join(model_checkpoints_folder, 'model_last.pth'))
 
     def update(self, batch_view_1, batch_view_2):
         # compute query feature

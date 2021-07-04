@@ -27,7 +27,16 @@ class GaussianBlur(object):
         self.tensor_to_pil = transforms.ToPILImage()
 
     def __call__(self, img):
-        img = self.pil_to_tensor(img).unsqueeze(0)
+        is_input_tensor = torch.is_tensor(img)
+
+        if is_input_tensor:
+            need_squeeze = (len(img.shape) == 3)
+        else:
+            need_squeeze = True
+            img = self.pil_to_tensor(img)
+
+        if need_squeeze:
+            img = img.unsqueeze(0)
 
         sigma = np.random.uniform(0.1, 2.0)
         x = np.arange(-self.r, self.r + 1)
@@ -40,8 +49,11 @@ class GaussianBlur(object):
 
         with torch.no_grad():
             img = self.blur(img)
-            img = img.squeeze()
 
-        img = self.tensor_to_pil(img)
+            if need_squeeze:
+                img = img.squeeze()
+
+        if not is_input_tensor:
+            img = self.tensor_to_pil(img)
 
         return img

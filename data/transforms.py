@@ -9,6 +9,5 @@ def get_simclr_data_transforms(input_shape, s=1):
                                           transforms.RandomHorizontalFlip(),
                                           transforms.RandomApply([color_jitter], p=0.8),
                                           transforms.RandomGrayscale(p=0.2),
-                                          GaussianBlur(kernel_size=int(0.1 * eval(input_shape)[0])),
-                                          transforms.ToTensor()])
+                                          GaussianBlur(kernel_size=int(0.1 * eval(input_shape)[0]))])
     return data_transforms

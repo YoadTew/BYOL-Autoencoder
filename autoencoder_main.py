@@ -13,7 +13,7 @@ print(torch.__version__)
 torch.manual_seed(0)
 
 def main():
-    config = yaml.load(open("./config/config.yaml", "r"), Loader=yaml.FullLoader)
+    config = yaml.load(open("./config/config_autoencoder.yaml", "r"), Loader=yaml.FullLoader)
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Training with: {device}")
@@ -24,7 +24,8 @@ def main():
                                      split='train+unlabeled')
 
     # encoder
-    encoder = ResNet18(**config['network']).to(device)
+    content_encoder = ResNet18(**config['network']).to(device)
+    view_encoder = ResNet18(**config['network']).to(device)
     pretrained_folder = config['network']['fine_tune_from']
 
     # load pre-trained model if defined
@@ -36,18 +37,20 @@ def main():
             load_params = torch.load(os.path.join(os.path.join(checkpoints_folder, 'model.pth')),
                                      map_location=torch.device(torch.device(device)))
 
-            encoder.load_state_dict(load_params['encoder_state_dict'])
+            content_encoder.load_state_dict(load_params['content_encoder_state_dict'])
+            view_encoder.load_state_dict(load_params['view_encoder_state_dict'])
 
         except FileNotFoundError:
             print("Pre-trained weights not found. Training from scratch.")
 
     # decoder
-    decoder = Decoder().to(device)
+    decoder = Decoder(latent_dim=256).to(device)
 
-    optimizer = torch.optim.SGD(list(encoder.parameters()) + list(decoder.parameters()),
+    optimizer = torch.optim.SGD(list(content_encoder.parameters()) + list(view_encoder.parameters()) + list(decoder.parameters()),
                                 **config['optimizer']['params'])
 
-    trainer = BYOLAutoencoderTrainer(encoder=encoder,
+    trainer = BYOLAutoencoderTrainer(content_encoder=content_encoder,
+                                     view_encoder=view_encoder,
                                      decoder=decoder,
                                      optimizer=optimizer,
                                      device=device,

@@ -18,12 +18,12 @@ class STL10DatasetWrap(data.Dataset):
         other_index = random.randint(0, len(self.dataset) - 1)
 
         img = self.dataset[index][0]
-        other_img = self.dataset[other_index][0]
+        img2 = self.dataset[other_index][0]
 
-        view_1 = self.transform(self.to_tensor(img))
-        view_2, other_img = self.transform(torch.stack((self.to_tensor(img), self.to_tensor(other_img))))
+        img1_view1, img2_view1 = self.transform(torch.stack((self.to_tensor(img), self.to_tensor(img2))))
+        img1_view2, img2_view2 = self.transform(torch.stack((self.to_tensor(img), self.to_tensor(img2))))
 
-        return view_1, view_2, other_img
+        return img1_view1, img1_view2, img2_view1, img2_view2
 
     def __len__(self):
         return len(self.dataset)

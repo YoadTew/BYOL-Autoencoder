@@ -9,8 +9,15 @@ from models.resnet_base_network import ResNet18
 from models.decoder import Decoder
 from autoencoder_trainer import BYOLAutoencoderTrainer
 
+import argparse
+
 print(torch.__version__)
 torch.manual_seed(0)
+
+parser = argparse.ArgumentParser(description="training script",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("--dataset_root", type=str, default='/home/work/Datasets/', help="Path to root directory of dataset")
+args = parser.parse_args()
 
 def main():
     config = yaml.load(open("./config/config_autoencoder.yaml", "r"), Loader=yaml.FullLoader)
@@ -20,7 +27,7 @@ def main():
 
     data_transform = get_simclr_data_transforms(**config['data_transforms'])
 
-    train_dataset = STL10DatasetWrap(root_dir='/home/work/Datasets/', data_transform=data_transform,
+    train_dataset = STL10DatasetWrap(root_dir=args.dataset_root, data_transform=data_transform,
                                      split='train+unlabeled')
 
     # encoder

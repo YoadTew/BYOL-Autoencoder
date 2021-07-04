@@ -68,7 +68,7 @@ class BYOLAutoencoderTrainer:
                     self.writer.add_image('img_2_views_1', grid, global_step=niter)
 
                     grid = torchvision.utils.make_grid(batch_img2_view2[:32])
-                    self.writer.add_image('img_2_views_1', grid, global_step=niter)
+                    self.writer.add_image('img_2_views_2', grid, global_step=niter)
 
                 content_loss, view_loss, reconstruction_loss = self.update(batch_img1_view1, batch_img1_view2,
                                                                            batch_img2_view1, batch_img2_view2)

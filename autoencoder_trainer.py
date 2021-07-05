@@ -44,34 +44,35 @@ class BYOLAutoencoderTrainer:
     def train(self, train_dataset):
 
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
-                                  num_workers=self.num_workers, drop_last=False, shuffle=True)
+                                  num_workers=self.num_workers, drop_last=True, shuffle=True)
 
         niter = 0
         model_checkpoints_folder = os.path.join(self.writer.log_dir, 'checkpoints')
 
         for epoch_counter in range(self.max_epochs):
-            for (batch_img1_view1, batch_img1_view2, batch_img2_view1, batch_img2_view2) in train_loader:
+            for batch_idx, (batch_img1_view1, batch_img1_view2, batch_img2_view1, batch_img2_view2) in enumerate(train_loader):
 
                 batch_img1_view1 = batch_img1_view1.to(self.device)
                 batch_img1_view2 = batch_img1_view2.to(self.device)
                 batch_img2_view1 = batch_img2_view1.to(self.device)
                 batch_img2_view2 = batch_img2_view2.to(self.device)
 
-                if niter == 0:
+                if batch_idx == 0:
                     grid = torchvision.utils.make_grid(batch_img1_view1[:32])
-                    self.writer.add_image('img_1_views_1', grid, global_step=niter)
+                    self.writer.add_image('img_1_views_1', grid, global_step=epoch_counter)
 
                     grid = torchvision.utils.make_grid(batch_img1_view2[:32])
-                    self.writer.add_image('img_1_views_2', grid, global_step=niter)
+                    self.writer.add_image('img_1_views_2', grid, global_step=epoch_counter)
 
                     grid = torchvision.utils.make_grid(batch_img2_view1[:32])
-                    self.writer.add_image('img_2_views_1', grid, global_step=niter)
+                    self.writer.add_image('img_2_views_1', grid, global_step=epoch_counter)
 
                     grid = torchvision.utils.make_grid(batch_img2_view2[:32])
-                    self.writer.add_image('img_2_views_2', grid, global_step=niter)
+                    self.writer.add_image('img_2_views_2', grid, global_step=epoch_counter)
 
                 content_loss, view_loss, reconstruction_loss = self.update(batch_img1_view1, batch_img1_view2,
-                                                                           batch_img2_view1, batch_img2_view2)
+                                                                           batch_img2_view1, batch_img2_view2,
+                                                                           batch_idx, epoch_counter)
                 loss = self.content_loss_weight * content_loss + \
                        self.view_loss_weight * view_loss + \
                        self.reconstruction_loss_weight * reconstruction_loss
@@ -95,25 +96,39 @@ class BYOLAutoencoderTrainer:
         # save checkpoints
         self.save_model(os.path.join(model_checkpoints_folder, 'model_last.pth'))
 
-    def update(self, batch_img1_view1, batch_img1_view2, batch_img2_view1, batch_img2_view2):
+    def update(self, t1_x1, t2_x1, t1_x2, t2_x2, batch_idx, epoch_counter):
+        # e1 - Content encoder, e2 - view encoder, t_i - augmentation, x_i - image
+
         # compute content features
-        content_img1_view1 = self.content_encoder(batch_img1_view1)
-        content_img1_view2 = self.content_encoder(batch_img1_view2)
+        e1_t1_x1, e1_t2_x1 = self.content_encoder(torch.cat([t1_x1, t2_x1])).view(2, self.batch_size, -1)
+        e1_t1_x2, e1_t2_x2 = self.content_encoder(torch.cat([t1_x2, t2_x2])).view(2, self.batch_size, -1)
 
         # compute augmentation features
-        view_img1_view1 = self.view_encoder(batch_img1_view1)
-        view_img2_view1 = self.view_encoder(batch_img2_view1)
+        e2_t1_x1, e2_t2_x1 = self.view_encoder(torch.cat([t1_x1, t2_x1])).view(2, self.batch_size, -1)
+        e2_t1_x2, e2_t2_x2 = self.view_encoder(torch.cat([t1_x2, t2_x2])).view(2, self.batch_size, -1)
 
-        gen_img1_view1 = self.decoder(torch.cat([content_img1_view1, view_img1_view1], dim=1))
+        # compute generated images
+        D_t2_x1 = self.decoder(torch.cat([e1_t1_x1, e2_t2_x2], dim=1))
+        D_t1_x2 = self.decoder(torch.cat([e1_t1_x2, e2_t1_x1], dim=1))
 
-        content_loss = self.regression_loss(content_img1_view1, content_img1_view2)
+        if batch_idx == 0:
+            grid = torchvision.utils.make_grid(D_t2_x1[:32])
+            self.writer.add_image('Decoded_t2_x1', grid, global_step=epoch_counter)
+
+            grid = torchvision.utils.make_grid(D_t1_x2[:32])
+            self.writer.add_image('Decoded_t1_x2', grid, global_step=epoch_counter)
+
+        # Content loss
+        content_loss = self.regression_loss(e1_t1_x1, e1_t2_x1)
+        content_loss += self.regression_loss(e1_t1_x2, e1_t2_x2)
         content_loss = content_loss.mean()
 
-        view_loss = self.regression_loss(view_img1_view1, view_img2_view1)
+        view_loss = self.regression_loss(e2_t1_x1, e2_t1_x2)
+        view_loss += self.regression_loss(e2_t2_x1, e2_t2_x2)
         view_loss = view_loss.mean()
 
-        reconstruction_loss = self.reconstruction_criterion(gen_img1_view1, batch_img1_view1)
-        reconstruction_loss = reconstruction_loss.mean()
+        reconstruction_loss = self.reconstruction_criterion(D_t2_x1, t2_x1)
+        reconstruction_loss += self.reconstruction_criterion(D_t1_x2, t1_x2)
 
         return content_loss, view_loss, reconstruction_loss
 

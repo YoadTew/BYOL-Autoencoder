@@ -109,7 +109,9 @@ class BYOLAutoencoderTrainer:
 
         # compute generated images
         D_t2_x1 = self.decoder(torch.cat([e1_t1_x1, e2_t2_x2], dim=1))
-        D_t1_x2 = self.decoder(torch.cat([e1_t1_x2, e2_t1_x1], dim=1))
+        D_t1_x2 = self.decoder(torch.cat([e1_t2_x2, e2_t1_x1], dim=1))
+        # D_t2_x2 = self.decoder(torch.cat([e1_t1_x2, e2_t2_x1], dim=1))
+        # D_t1_x1 = self.decoder(torch.cat([e1_t2_x1, e2_t1_x2], dim=1))
 
         if batch_idx == 0:
             grid = torchvision.utils.make_grid(D_t2_x1[:32])

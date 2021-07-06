@@ -34,12 +34,49 @@ class BYOLAutoencoderTrainer:
         self.content_loss_weight = params['content_loss_weight']
         self.view_loss_weight = params['view_loss_weight']
         self.reconstruction_loss_weight = params['reconstruction_loss_weight']
+        self.use_cross_decode = params['use_cross_decode']
 
     @staticmethod
     def regression_loss(x, y):
         x = F.normalize(x, dim=1)
         y = F.normalize(y, dim=1)
         return 2 - 2 * (x * y).sum(dim=-1)
+
+    def reconstruction_loss(self, t1_x1, t2_x1, t1_x2, t2_x2,
+                            e1_t1_x1, e1_t2_x1, e1_t1_x2, e1_t2_x2,
+                            e2_t1_x1, e2_t2_x1, e2_t1_x2, e2_t2_x2, batch_idx, epoch_counter):
+
+        if self.use_cross_decode:
+            # compute generated images
+            D_t2_x1 = self.decoder(torch.cat([e1_t1_x1, e2_t2_x2], dim=1))
+            D_t1_x2 = self.decoder(torch.cat([e1_t2_x2, e2_t1_x1], dim=1))
+            # D_t2_x2 = self.decoder(torch.cat([e1_t1_x2, e2_t2_x1], dim=1))
+            # D_t1_x1 = self.decoder(torch.cat([e1_t2_x1, e2_t1_x2], dim=1))
+
+            if batch_idx == 0:
+                grid = torchvision.utils.make_grid(D_t2_x1[:32])
+                self.writer.add_image('Decoded_t2_x1', grid, global_step=epoch_counter)
+
+                grid = torchvision.utils.make_grid(D_t1_x2[:32])
+                self.writer.add_image('Decoded_t1_x2', grid, global_step=epoch_counter)
+
+            loss = self.reconstruction_criterion(D_t2_x1, t2_x1)
+            loss += self.reconstruction_criterion(D_t1_x2, t1_x2)
+        else:
+            D_t1_x1 = self.decoder(torch.cat([e1_t1_x1, e2_t1_x1], dim=1))
+            D_t2_x2 = self.decoder(torch.cat([e1_t2_x2, e2_t2_x2], dim=1))
+
+            if batch_idx == 0:
+                grid = torchvision.utils.make_grid(D_t1_x1[:32])
+                self.writer.add_image('Decoded_t1_x1', grid, global_step=epoch_counter)
+
+                grid = torchvision.utils.make_grid(D_t2_x2[:32])
+                self.writer.add_image('Decoded_t2_x2', grid, global_step=epoch_counter)
+
+            loss = self.reconstruction_criterion(D_t1_x1, t1_x1)
+            loss += self.reconstruction_criterion(D_t2_x2, t2_x2)
+
+        return loss
 
     def train(self, train_dataset):
 
@@ -108,17 +145,10 @@ class BYOLAutoencoderTrainer:
         e2_t1_x2, e2_t2_x2 = self.view_encoder(torch.cat([t1_x2, t2_x2])).view(2, self.batch_size, -1)
 
         # compute generated images
-        D_t2_x1 = self.decoder(torch.cat([e1_t1_x1, e2_t2_x2], dim=1))
-        D_t1_x2 = self.decoder(torch.cat([e1_t2_x2, e2_t1_x1], dim=1))
-        # D_t2_x2 = self.decoder(torch.cat([e1_t1_x2, e2_t2_x1], dim=1))
-        # D_t1_x1 = self.decoder(torch.cat([e1_t2_x1, e2_t1_x2], dim=1))
-
-        if batch_idx == 0:
-            grid = torchvision.utils.make_grid(D_t2_x1[:32])
-            self.writer.add_image('Decoded_t2_x1', grid, global_step=epoch_counter)
-
-            grid = torchvision.utils.make_grid(D_t1_x2[:32])
-            self.writer.add_image('Decoded_t1_x2', grid, global_step=epoch_counter)
+        reconstruction_loss = self.reconstruction_loss(
+            t1_x1, t2_x1, t1_x2, t2_x2,
+            e1_t1_x1, e1_t2_x1, e1_t1_x2, e1_t2_x2,
+            e2_t1_x1, e2_t2_x1, e2_t1_x2, e2_t2_x2, batch_idx, epoch_counter)
 
         # Content loss
         content_loss = self.regression_loss(e1_t1_x1, e1_t2_x1)
@@ -128,9 +158,6 @@ class BYOLAutoencoderTrainer:
         view_loss = self.regression_loss(e2_t1_x1, e2_t1_x2)
         view_loss += self.regression_loss(e2_t2_x1, e2_t2_x2)
         view_loss = view_loss.mean()
-
-        reconstruction_loss = self.reconstruction_criterion(D_t2_x1, t2_x1)
-        reconstruction_loss += self.reconstruction_criterion(D_t1_x2, t1_x2)
 
         return content_loss, view_loss, reconstruction_loss
 

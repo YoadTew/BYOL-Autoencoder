@@ -45,9 +45,11 @@ output_feature_dim = encoder.projetion.net[0].in_features
 load_params = torch.load(os.path.join(args.model_path),
                          map_location=torch.device(torch.device(device)))
 
-if 'encoder_state_dict' in load_params:
-    encoder.load_state_dict(load_params['encoder_state_dict'])
+if 'content_encoder_state_dict' in load_params:
+    encoder.load_state_dict(load_params['content_encoder_state_dict'])
     print("Parameters successfully loaded.")
+else:
+    raise Exception('Could not load weights')
 
 # remove the projection head
 encoder = torch.nn.Sequential(*list(encoder.children())[:-1])

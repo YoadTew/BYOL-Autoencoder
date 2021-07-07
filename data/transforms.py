@@ -11,7 +11,8 @@ def get_simclr_data_transforms(input_shape, s=1,
         'horizontal_flip': transforms.RandomHorizontalFlip(),
         'color_jitter': transforms.RandomApply([color_jitter], p=0.8),
         'gray_scale': transforms.RandomGrayscale(p=0.4), # Original p=0.2
-        'gaussian_blur': GaussianBlur(kernel_size=int(0.1 * eval(input_shape)[0]))
+        'gaussian_blur': GaussianBlur(kernel_size=int(0.1 * eval(input_shape)[0])),
+        'random_rotate': transforms.RandomRotation(45)
     }
 
     transforms_list = [transform_options[x] for x in transforms_choice]

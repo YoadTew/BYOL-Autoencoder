@@ -109,7 +109,7 @@ class BYOLAutoencoderTrainer:
 
                 content_loss, view_loss, reconstruction_loss = self.update(batch_img1_view1, batch_img1_view2,
                                                                            batch_img2_view1, batch_img2_view2,
-                                                                           batch_idx, epoch_counter)
+                                                                           batch_idx, epoch_counter, niter)
                 loss = self.content_loss_weight * content_loss + \
                        self.view_loss_weight * view_loss + \
                        self.reconstruction_loss_weight * reconstruction_loss
@@ -133,7 +133,7 @@ class BYOLAutoencoderTrainer:
         # save checkpoints
         self.save_model(os.path.join(model_checkpoints_folder, 'model_last.pth'))
 
-    def update(self, t1_x1, t2_x1, t1_x2, t2_x2, batch_idx, epoch_counter):
+    def update(self, t1_x1, t2_x1, t1_x2, t2_x2, batch_idx, epoch_counter, niter):
         # e1 - Content encoder, e2 - view encoder, t_i - augmentation, x_i - image
 
         # compute content features
@@ -143,6 +143,8 @@ class BYOLAutoencoderTrainer:
         # compute augmentation features
         e2_t1_x1, e2_t2_x1 = self.view_encoder(torch.cat([t1_x1, t2_x1])).view(2, self.batch_size, -1)
         e2_t1_x2, e2_t2_x2 = self.view_encoder(torch.cat([t1_x2, t2_x2])).view(2, self.batch_size, -1)
+
+        self.log_std(e1_t1_x1, e2_t1_x1, niter)
 
         # compute generated images
         reconstruction_loss = self.reconstruction_loss(
@@ -160,6 +162,12 @@ class BYOLAutoencoderTrainer:
         view_loss = view_loss.mean()
 
         return content_loss, view_loss, reconstruction_loss
+
+    def log_std(self, e1_t1_x1, e2_t1_x1, niter):
+        content_std = torch.mean(torch.std(e1_t1_x1, dim=0))
+        view_std = torch.mean(torch.std(e2_t1_x1, dim=0))
+        self.writer.add_scalar('Content std', content_std, global_step=niter)
+        self.writer.add_scalar('View std', view_std, global_step=niter)
 
     def save_model(self, PATH):
         torch.save({

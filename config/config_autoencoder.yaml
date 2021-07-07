@@ -11,7 +11,7 @@ network:
 data_transforms:
   s: 1
   input_shape: (96,96,3)
-  transforms_choice: ['gray_scale']
+  transforms_choice: ['random_rotate']
 
 trainer:
   batch_size: 64
@@ -22,7 +22,7 @@ trainer:
   content_loss_weight: 1
   view_loss_weight: 1
   reconstruction_loss_weight: 10
-  use_cross_decode: False
+  use_cross_decode: True
 
 optimizer:
   params:

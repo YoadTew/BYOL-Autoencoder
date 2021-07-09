@@ -15,13 +15,15 @@ parser = argparse.ArgumentParser(description="training script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--data_root", type=str, default='/home/work/Datasets/', help="Path to root directory of dataset")
 parser.add_argument("--model_path", type=str, default='runs/Jul05_16-58-54_yoad-ubuntu20/checkpoints/model_last.pth', help="Path to trained model weights")
+parser.add_argument("--config_path", type=str, default='config/config_autoencoder.yaml', help="Path to config")
+
 args = parser.parse_args()
 
 
 batch_size = 512
 data_transforms = torchvision.transforms.Compose([transforms.ToTensor()])
 
-config = yaml.load(open("config/config_autoencoder.yaml", "r"), Loader=yaml.FullLoader)
+config = yaml.load(open(args.config_path, "r"), Loader=yaml.FullLoader)
 
 train_dataset = datasets.STL10(args.data_root, split='train', download=False,
                                transform=data_transforms)

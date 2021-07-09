@@ -16,7 +16,7 @@ def log_info(text):
     sys.stdout.flush()
 
 class BYOLAutoencoderTrainer:
-    def __init__(self, content_encoder, view_encoder, decoder, optimizer, device, **params):
+    def __init__(self, content_encoder, view_encoder, decoder, optimizer, device, files_to_same, **params):
         self.content_encoder = content_encoder
         self.view_encoder = view_encoder
         self.decoder = decoder
@@ -28,7 +28,7 @@ class BYOLAutoencoderTrainer:
         self.batch_size = params['batch_size']
         self.num_workers = params['num_workers']
         self.checkpoint_interval = params['checkpoint_interval']
-        _create_model_training_folder(self.writer, files_to_same=["./config/config.yaml", "autoencoder_main.py", 'autoencoder_trainer.py'])
+        _create_model_training_folder(self.writer, files_to_same=files_to_same)
 
         self.reconstruction_criterion = nn.MSELoss()
         self.content_loss_weight = params['content_loss_weight']

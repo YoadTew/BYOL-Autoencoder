@@ -17,10 +17,11 @@ torch.manual_seed(0)
 parser = argparse.ArgumentParser(description="training script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--dataset_root", type=str, default='/home/work/Datasets/', help="Path to root directory of dataset")
+parser.add_argument("--config_path", type=str, default='config/config_autoencoder.yaml', help="Path to config")
 args = parser.parse_args()
 
 def main():
-    config = yaml.load(open("./config/config_autoencoder.yaml", "r"), Loader=yaml.FullLoader)
+    config = yaml.load(open(args.config_path, "r"), Loader=yaml.FullLoader)
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Training with: {device}")
@@ -61,6 +62,7 @@ def main():
                                      decoder=decoder,
                                      optimizer=optimizer,
                                      device=device,
+                                     files_to_same=[args.config_path, "autoencoder_main.py", 'autoencoder_trainer.py'],
                                      **config['trainer'])
 
     trainer.train(train_dataset)

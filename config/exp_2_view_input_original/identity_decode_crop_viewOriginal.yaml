@@ -1,4 +1,4 @@
-network:color_jitter
+network:
   name: resnet18
 
   # Specify a folder containing a pre-trained model to fine-tune. If training from scratch, pass None.

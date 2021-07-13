@@ -9,6 +9,7 @@ from models.resnet_base_network import ResNet18
 from models.decoder import Decoder
 from autoencoder_trainer import BYOLAutoencoderTrainer
 
+import sys
 import argparse
 
 print(torch.__version__)
@@ -23,8 +24,12 @@ args = parser.parse_args()
 def main():
     config = yaml.load(open(args.config_path, "r"), Loader=yaml.FullLoader)
 
+    if sys.gettrace() is not None:
+        config['trainer']['num_workers'] = 0
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Training with: {device}")
+    print(f"Num workers: {config['trainer']['num_workers']}")
 
     data_transform = get_simclr_data_transforms(**config['data_transforms'])
 
@@ -33,7 +38,12 @@ def main():
 
     # encoder
     content_encoder = ResNet18(**config['network']).to(device)
-    view_encoder = ResNet18(**config['network']).to(device)
+
+    if config['trainer']['view_input_original_image']:
+        view_encoder = ResNet18(in_channels=6, **config['network']).to(device)
+    else:
+        view_encoder = ResNet18(in_channels=3, **config['network']).to(device)
+
     pretrained_folder = config['network']['fine_tune_from']
 
     # load pre-trained model if defined

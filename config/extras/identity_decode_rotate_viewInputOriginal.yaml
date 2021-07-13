@@ -22,8 +22,8 @@ trainer:
   content_loss_weight: 1
   view_loss_weight: 1
   reconstruction_loss_weight: 10
-  use_cross_decode: True
-  view_input_original_image: False
+  use_cross_decode: False
+  view_input_original_image: True
 
 optimizer:
   params:

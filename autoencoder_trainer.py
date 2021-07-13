@@ -35,6 +35,7 @@ class BYOLAutoencoderTrainer:
         self.view_loss_weight = params['view_loss_weight']
         self.reconstruction_loss_weight = params['reconstruction_loss_weight']
         self.use_cross_decode = params['use_cross_decode']
+        self.view_input_original_image = params['view_input_original_image']
 
     @staticmethod
     def regression_loss(x, y):
@@ -87,8 +88,11 @@ class BYOLAutoencoderTrainer:
         model_checkpoints_folder = os.path.join(self.writer.log_dir, 'checkpoints')
 
         for epoch_counter in range(self.max_epochs):
-            for batch_idx, (batch_img1_view1, batch_img1_view2, batch_img2_view1, batch_img2_view2) in enumerate(train_loader):
+            for batch_idx, batch_data in enumerate(train_loader):
 
+                (img1, img2, batch_img1_view1, batch_img1_view2, batch_img2_view1, batch_img2_view2) = batch_data
+                img1 = img1.to(self.device)
+                img2 = img2.to(self.device)
                 batch_img1_view1 = batch_img1_view1.to(self.device)
                 batch_img1_view2 = batch_img1_view2.to(self.device)
                 batch_img2_view1 = batch_img2_view1.to(self.device)
@@ -107,7 +111,8 @@ class BYOLAutoencoderTrainer:
                     grid = torchvision.utils.make_grid(batch_img2_view2[:32])
                     self.writer.add_image('img_2_views_2', grid, global_step=epoch_counter)
 
-                content_loss, view_loss, reconstruction_loss = self.update(batch_img1_view1, batch_img1_view2,
+                content_loss, view_loss, reconstruction_loss = self.update(img1, img2,
+                                                                           batch_img1_view1, batch_img1_view2,
                                                                            batch_img2_view1, batch_img2_view2,
                                                                            batch_idx, epoch_counter, niter)
                 loss = self.content_loss_weight * content_loss + \
@@ -133,7 +138,7 @@ class BYOLAutoencoderTrainer:
         # save checkpoints
         self.save_model(os.path.join(model_checkpoints_folder, 'model_last.pth'))
 
-    def update(self, t1_x1, t2_x1, t1_x2, t2_x2, batch_idx, epoch_counter, niter):
+    def update(self, x1, x2, t1_x1, t2_x1, t1_x2, t2_x2, batch_idx, epoch_counter, niter):
         # e1 - Content encoder, e2 - view encoder, t_i - augmentation, x_i - image
 
         # compute content features
@@ -141,8 +146,15 @@ class BYOLAutoencoderTrainer:
         e1_t1_x2, e1_t2_x2 = self.content_encoder(torch.cat([t1_x2, t2_x2])).view(2, self.batch_size, -1)
 
         # compute augmentation features
-        e2_t1_x1, e2_t2_x1 = self.view_encoder(torch.cat([t1_x1, t2_x1])).view(2, self.batch_size, -1)
-        e2_t1_x2, e2_t2_x2 = self.view_encoder(torch.cat([t1_x2, t2_x2])).view(2, self.batch_size, -1)
+        if self.view_input_original_image:
+            view_input_x1 = torch.cat([torch.cat([x1, t1_x1], dim=1), torch.cat([x1, t2_x1], dim=1)])
+            view_input_x2 = torch.cat([torch.cat([x2, t1_x2], dim=1), torch.cat([x2, t2_x2], dim=1)])
+        else:
+            view_input_x1 = torch.cat([t1_x1, t2_x1])
+            view_input_x2 = torch.cat([t1_x2, t2_x2])
+
+        e2_t1_x1, e2_t2_x1 = self.view_encoder(view_input_x1).view(2, self.batch_size, -1)
+        e2_t1_x2, e2_t2_x2 = self.view_encoder(view_input_x2).view(2, self.batch_size, -1)
 
         self.log_std(e1_t1_x1, e2_t1_x1, niter)
 

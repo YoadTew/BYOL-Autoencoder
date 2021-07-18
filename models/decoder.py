@@ -28,4 +28,8 @@ class Decoder(nn.Module):
         out = self.l1(z)
         out = out.view(out.shape[0], 128, self.init_size, self.init_size)
         img = self.conv_blocks(out)
+
+        # TODO: do this and remove the nn.Sigmoid()
+        # img = (torch.tanh(img) + 1) / 2
+
         return img

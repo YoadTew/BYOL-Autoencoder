@@ -6,7 +6,8 @@ from data.stl10_wrap import STL10DatasetWrap
 from data.transforms import get_simclr_data_transforms
 from models.mlp_head import MLPHead
 from models.resnet_base_network import ResNet18
-from models.decoder import Decoder
+from models.decoder import Decoder as DecoderDCGAN
+from models.decoder_resnet import Generator as DecoderResnet
 from autoencoder_trainer import BYOLAutoencoderTrainer
 
 import sys
@@ -62,7 +63,10 @@ def main():
             print("Pre-trained weights not found. Training from scratch.")
 
     # decoder
-    decoder = Decoder(latent_dim=256).to(device)
+    if (not 'decoder' in config['network']) or (config['network']['decoder'] == 'dcgan'):
+        decoder = DecoderDCGAN(latent_dim=256).to(device)
+    else:
+        decoder = DecoderResnet(z_dim=256).to(device)
 
     optimizer = torch.optim.SGD(list(content_encoder.parameters()) + list(view_encoder.parameters()) + list(decoder.parameters()),
                                 **config['optimizer']['params'])
